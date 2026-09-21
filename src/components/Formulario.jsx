@@ -1,11 +1,28 @@
-import { use, useState } from "react"
+import { useEffect, useState } from "react"
 
 
-export default function FormularioPrueba(){
+export default function Formulario(){
     const [fechaNacimiento, setFechaNacimiento] = useState("");
+    const [claseFormulario, setClaseFormulario] = useState(null);
+    useEffect(() => {
+        const claseGuardada = localStorage.getItem("claseFormulario");
+        
+        if (claseGuardada) {
+            const clase = JSON.parse(claseGuardada);
+            setClaseFormulario(clase);
+            console.log("Clase recibida:", clase);
+        }
+    }, [])
     const [enviado, setEnviado] = useState(false);
     const [telefono, setTelefono] = useState("");
     const [telefonoApoderado, setTelefonoApoderado] = useState("");
+    const clase= {
+        nombre: "",
+        sede: "",
+        profesor: "",
+        dias: "",
+        horario: "",
+    }
 
     const hoy = new Date().toISOString().split("T")[0];
 
@@ -62,6 +79,24 @@ export default function FormularioPrueba(){
         <h1 className="text-3xl font-bold mb-6">
             Formulario de clases de prueba
         </h1>
+
+        {claseFormulario && (
+            <div className="mb-6 p-4 bg-gray-100 rounded-lg">
+                <h2 className="text-xl font-semibold mb-2">
+                    Clase y horario asignado
+                </h2>
+
+                <p><strong>Clase:</strong> {claseFormulario.nombre}</p>
+                <p><strong>Sede:</strong> {claseFormulario.sede}</p>
+                <p><strong>Profesor:</strong> {claseFormulario.profesor}</p>
+                <p>
+                    <strong>Días:</strong> {claseFormulario.frecuencia.join(" ")}
+                </p>
+                <p>
+                    <strong>Horario:</strong> {claseFormulario.horaInicio} - {claseFormulario.horaFin}
+                </p>
+            </div>
+        )}
 
         <div className="mb-4">
          <label className="block">
@@ -180,7 +215,7 @@ export default function FormularioPrueba(){
                          pattern="[0-9]{9}"
                          value={telefonoApoderado}
                          onChange={(e) =>
-                            setTelefonoApoderado(e.target-value-replace(/\D/g, ""))
+                            setTelefonoApoderado(e.target.value.replace(/\D/g, "").slice(0, 9))
                          }
                          className="w-full border rounded-md p-2 mt-1" 
                         />
@@ -191,7 +226,7 @@ export default function FormularioPrueba(){
 
         <button
                   type="submit"
-                  className="w-full bg-blue-600 text-white py-2 rounded-md mt-6"
+                  className="w-full bg-blue-600 text-white py-2 rounded-md mt-6 cursor-pointer"
                 >
                     Enviar
                 </button>
