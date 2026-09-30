@@ -1,0 +1,869 @@
+---
+import "../styles/global.css";
+---
+
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Postulaciones</title>
+    </head>
+
+    <body class="bg-gray-100">
+        <main class="mx-auto min-h-screen w-full max-w-82.5 bg-[#f7f9fb]">
+            <div
+                class="flex h-12.25 items-center justify-between border-b border-gray-200 bg-white px-4"
+            >
+                <button
+                    id="volverCalendario"
+                    type="button"
+                    class="flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 text-sm text-gray-400"
+                >
+                    ‹
+                </button>
+
+                <h1 class="text-sm font-bold text-gray-800">
+                    Respuestas recibidas
+                </h1>
+
+                <div class="flex items-center gap-2">
+                    <button
+                        id="cancelarSeleccion"
+                        type="button"
+                        class="hidden rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[10px] font-semibold text-gray-500"
+                    >
+                        Cancelar
+                    </button>
+
+                    <button
+                        id="eliminarPostulaciones"
+                        type="button"
+                        class="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-[10px] font-semibold text-red-500"
+                    >
+                        🗑 Eliminar
+                    </button>
+                </div>
+            </div>
+
+            <div class="px-4 pb-3 pt-5">
+                <select
+                    id="selectorClase"
+                    class="h-9.5 w-full rounded-xl border border-gray-200 bg-white px-4 text-xs text-gray-700 shadow-sm outline-none"
+                >
+                </select>
+            </div>
+
+            <div id="resumenCupos" class="px-4 pb-3"></div>
+
+            <div id="postulaciones" class="space-y-3 px-4 pb-8"></div>
+        </main>
+
+        <script>
+            async function cargarPostulaciones() {
+                const contenedor =
+                    document.getElementById("postulaciones")!;
+
+                const resumenCupos =
+                    document.getElementById("resumenCupos")!;
+
+                const selectorClase = document.getElementById(
+                    "selectorClase",
+                ) as HTMLSelectElement;
+
+                const botonEliminar =
+                    document.getElementById(
+                        "eliminarPostulaciones",
+                    );
+
+                const botonCancelar =
+                    document.getElementById(
+                        "cancelarSeleccion",
+                    );
+
+                let postulaciones: any[] = [];
+                let clases: any[] = [];
+                let modoSeleccion = false;
+
+                async function cargarDatos() {
+                    const respuestaPostulaciones =
+                        await fetch(
+                            "http://127.0.0.1:3000/clases/postulaciones",
+                        );
+
+                    if (!respuestaPostulaciones.ok) {
+                        throw new Error(
+                            "No se pudieron obtener las postulaciones",
+                        );
+                    }
+
+                    postulaciones =
+                        await respuestaPostulaciones.json();
+
+                    const respuestaClases =
+                        await fetch(
+                            "http://127.0.0.1:3000/clases",
+                        );
+
+                    if (!respuestaClases.ok) {
+                        throw new Error(
+                            "No se pudieron obtener las clases",
+                        );
+                    }
+
+                    clases =
+                        await respuestaClases.json();
+                }
+
+                const obtenerClase = (
+                    claseId: any,
+                ) => {
+                    return clases.find(
+                        (clase: any) =>
+                            clase.id == claseId,
+                    );
+                };
+
+                const obtenerEstadoVisual = (
+                    estado: any,
+                ) => {
+                    if (
+                        estado === "aceptado" ||
+                        estado === "aprobado"
+                    ) {
+                        return {
+                            texto: "Aprobado",
+                            clase:
+                                "bg-green-50 text-green-600",
+                        };
+                    }
+
+                    if (
+                        estado === "ignorado" ||
+                        estado === "rechazado"
+                    ) {
+                        return {
+                            texto: "Ignorado",
+                            clase:
+                                "bg-red-50 text-red-500",
+                        };
+                    }
+
+                    return {
+                        texto: "Pendiente",
+                        clase:
+                            "bg-yellow-50 text-yellow-600",
+                    };
+                };
+
+                const obtenerCuposDisponibles = (
+                    claseId: any,
+                ) => {
+                    const clase =
+                        obtenerClase(claseId);
+
+                    if (!clase) {
+                        return 0;
+                    }
+
+                    return Number(
+                        clase.cuposDisponibles ??
+                            clase.cupos ??
+                            0,
+                    );
+                };
+
+                const mostrarResumenCupos = (
+                    claseId: any,
+                ) => {
+                    const clase =
+                        obtenerClase(claseId);
+
+                    if (!clase) {
+                        resumenCupos.innerHTML = "";
+                        return;
+                    }
+
+                    const cuposTotales = Number(
+                        clase.cupos ?? 0,
+                    );
+
+                    const cuposDisponibles =
+                        obtenerCuposDisponibles(
+                            claseId,
+                        );
+
+                    let textoEstado =
+                        "Cupos disponibles";
+
+                    let claseEstado =
+                        "bg-green-50 text-green-600";
+
+                    if (cuposDisponibles === 0) {
+                        textoEstado = "Sin cupos";
+                        claseEstado =
+                            "bg-red-50 text-red-500";
+                    } else if (
+                        cuposDisponibles <= 2
+                    ) {
+                        textoEstado =
+                            "Últimos cupos";
+
+                        claseEstado =
+                            "bg-yellow-50 text-yellow-600";
+                    }
+
+                    resumenCupos.innerHTML =
+                        '<div class="flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm">' +
+                        "<div>" +
+                        '<p class="text-[9px] font-medium text-gray-400">CUPOS DE LA CLASE</p>' +
+                        '<p class="mt-1 text-[11px] font-semibold text-gray-800">' +
+                        cuposDisponibles +
+                        " de " +
+                        cuposTotales +
+                        " disponibles" +
+                        "</p>" +
+                        "</div>" +
+                        '<span class="rounded-full px-2.5 py-1 text-[8px] font-semibold ' +
+                        claseEstado +
+                        '">' +
+                        textoEstado +
+                        "</span>" +
+                        "</div>";
+                };
+
+                const cargarSelectorClases = () => {
+                    selectorClase.innerHTML = "";
+
+                    clases.forEach(
+                        (clase: any) => {
+                            const cantidad =
+                                postulaciones.filter(
+                                    (postulacion) =>
+                                        postulacion.claseId ==
+                                        clase.id,
+                                ).length;
+
+                            const opcion =
+                                document.createElement(
+                                    "option",
+                                );
+
+                            opcion.value =
+                                clase.id;
+
+                            opcion.textContent =
+                                clase.nivel +
+                                " - Sede " +
+                                clase.sede +
+                                " (" +
+                                cantidad +
+                                " respuestas)";
+
+                            selectorClase.appendChild(
+                                opcion,
+                            );
+                        },
+                    );
+                };
+
+                const mostrarPostulaciones = (
+                    claseId: any,
+                ) => {
+                    contenedor.innerHTML = "";
+
+                    const postulacionesFiltradas =
+                        postulaciones.filter(
+                            (postulacion) =>
+                                postulacion.claseId ==
+                                claseId,
+                        );
+
+                    if (
+                        postulacionesFiltradas.length ===
+                        0
+                    ) {
+                        contenedor.innerHTML =
+                            '<div class="rounded-2xl border border-gray-200 bg-white px-4 py-8 text-center shadow-sm">' +
+                            '<p class="text-xs font-medium text-gray-500">No hay respuestas para esta clase</p>' +
+                            "</div>";
+
+                        return;
+                    }
+
+                    postulacionesFiltradas.forEach(
+                        (postulacion) => {
+                            const tarjeta =
+                                document.createElement(
+                                    "div",
+                                );
+
+                            const claseActual =
+                                obtenerClase(
+                                    postulacion.claseId,
+                                );
+
+                            const cuposDisponibles =
+                                obtenerCuposDisponibles(
+                                    postulacion.claseId,
+                                );
+
+                            const fechaPostulacion =
+                                new Date(
+                                    postulacion.fechaPostulacion,
+                                );
+
+                            const hoyFecha =
+                                new Date();
+
+                            const inicioHoy =
+                                new Date(
+                                    hoyFecha.getFullYear(),
+                                    hoyFecha.getMonth(),
+                                    hoyFecha.getDate(),
+                                );
+
+                            const inicioAyer =
+                                new Date(inicioHoy);
+
+                            inicioAyer.setDate(
+                                inicioAyer.getDate() -
+                                    1,
+                            );
+
+                            let fechaTexto;
+
+                            if (
+                                fechaPostulacion >=
+                                inicioHoy
+                            ) {
+                                fechaTexto = "Hoy";
+                            } else if (
+                                fechaPostulacion >=
+                                inicioAyer
+                            ) {
+                                fechaTexto = "Ayer";
+                            } else {
+                                fechaTexto =
+                                    fechaPostulacion.toLocaleDateString(
+                                        "es-PE",
+                                        {
+                                            day: "2-digit",
+                                            month: "2-digit",
+                                            year: "numeric",
+                                        },
+                                    );
+                            }
+
+                            const horaTexto =
+                                fechaPostulacion.toLocaleTimeString(
+                                    "en-US",
+                                    {
+                                        hour: "numeric",
+                                        minute: "2-digit",
+                                    },
+                                );
+
+                            const nacimiento =
+                                new Date(
+                                    postulacion.fechaNacimiento,
+                                );
+
+                            const hoy = new Date();
+
+                            let edad =
+                                hoy.getFullYear() -
+                                nacimiento.getFullYear();
+
+                            if (
+                                hoy.getMonth() <
+                                    nacimiento.getMonth() ||
+                                (hoy.getMonth() ===
+                                    nacimiento.getMonth() &&
+                                    hoy.getDate() <
+                                        nacimiento.getDate())
+                            ) {
+                                edad--;
+                            }
+
+                            const tutor =
+                                postulacion.nombreCompletoApoderado ||
+                                "";
+
+                            const estadoVisual =
+                                obtenerEstadoVisual(
+                                    postulacion.estado,
+                                );
+
+                            const estaIgnorado =
+                                postulacion.estado ===
+                                    "ignorado" ||
+                                postulacion.estado ===
+                                    "rechazado";
+
+                            const estaAceptado =
+                                postulacion.estado ===
+                                    "aceptado" ||
+                                postulacion.estado ===
+                                    "aprobado";
+
+                            tarjeta.className =
+                                "rounded-xl";
+
+                            tarjeta.innerHTML =
+                                '<div class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm ' +
+                                (estaIgnorado
+                                    ? "opacity-60"
+                                    : "") +
+                                '">' +
+                                '<div class="p-3.5">' +
+                                '<div class="mb-2 flex items-center justify-between">' +
+                                '<span class="text-[9px] text-gray-400">' +
+                                fechaTexto +
+                                " · " +
+                                horaTexto +
+                                "</span>" +
+                                '<span class="rounded-full px-2 py-1 text-[8px] font-semibold ' +
+                                estadoVisual.clase +
+                                '">' +
+                                estadoVisual.texto +
+                                "</span>" +
+                                "</div>" +
+                                '<div class="flex items-center gap-2.5">' +
+                                (modoSeleccion
+                                    ? '<input type="checkbox" class="checkbox-postulacion h-4 w-4 shrink-0 accent-purple-600" data-id="' +
+                                      postulacion.id +
+                                      '">'
+                                    : "") +
+                                '<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full ' +
+                                (estaIgnorado
+                                    ? "bg-gray-200 text-gray-400"
+                                    : "bg-purple-100 text-purple-700") +
+                                ' text-xs font-semibold">' +
+                                postulacion.nombre
+                                    .charAt(0)
+                                    .toUpperCase() +
+                                "</div>" +
+                                '<div class="min-w-0 flex-1">' +
+                                '<p class="truncate text-[11px] font-semibold text-gray-800">' +
+                                postulacion.nombre +
+                                ' <span class="font-normal text-gray-400">(' +
+                                edad +
+                                " años" +
+                                (edad < 18
+                                    ? " · Menor de edad"
+                                    : "") +
+                                ")</span>" +
+                                "</p>" +
+                                "</div>" +
+                                "</div>" +
+                                '<div class="mt-2.5 ml-[42px]">' +
+                                (edad < 18
+                                    ? '<p class="text-[10px] text-gray-500">' +
+                                      'Tutor: <span class="font-semibold">' +
+                                      (tutor ||
+                                          "No registrado") +
+                                      "</span>" +
+                                      "</p>"
+                                    : "") +
+                                '<p class="mt-0.5 text-[9px] text-gray-400">' +
+                                "📱 " +
+                                postulacion.telefono +
+                                " · ✉ " +
+                                postulacion.correo +
+                                "</p>" +
+                                "</div>" +
+                                '<div class="mt-2.5 rounded-full bg-purple-50 px-3 py-1.5">' +
+                                '<p class="truncate text-[9px] font-semibold text-purple-700">' +
+                                "🥋 " +
+                                postulacion.nivel +
+                                " - Sede " +
+                                postulacion.sede +
+                                "</p>" +
+                                "</div>" +
+                                "</div>" +
+                                (postulacion.estado ===
+                                "pendiente"
+                                    ? '<div class="grid grid-cols-2 border-t border-gray-200">' +
+                                      '<button id="dar-cupo-' +
+                                      postulacion.id +
+                                      '" class="cursor-pointer py-2.5 text-[10px] font-semibold text-green-600 hover:bg-green-50">' +
+                                      "🟢 Dar cupo" +
+                                      "</button>" +
+                                      '<button id="ignorar-' +
+                                      postulacion.id +
+                                      '" class="cursor-pointer border-l border-gray-200 py-2.5 text-[10px] font-medium text-gray-400 hover:bg-gray-50">' +
+                                      "Ignorar" +
+                                      "</button>" +
+                                      "</div>"
+                                    : "") +
+                                "</div>";
+
+                            contenedor.appendChild(
+                                tarjeta,
+                            );
+
+                            const checkbox =
+                                tarjeta.querySelector(
+                                    ".checkbox-postulacion",
+                                ) as HTMLInputElement;
+
+                            checkbox?.addEventListener(
+                                "change",
+                                () => {
+                                    const seleccionados =
+                                        document.querySelectorAll(
+                                            ".checkbox-postulacion:checked",
+                                        ).length;
+
+                                    if (
+                                        botonEliminar
+                                    ) {
+                                        botonEliminar.textContent =
+                                            "Eliminar seleccionados (" +
+                                            seleccionados +
+                                            ")";
+                                    }
+                                },
+                            );
+
+                            const botonCupo =
+                                document.getElementById(
+                                    "dar-cupo-" +
+                                        postulacion.id,
+                                );
+
+                            const botonIgnorar =
+                                document.getElementById(
+                                    "ignorar-" +
+                                        postulacion.id,
+                                );
+
+                            botonCupo?.addEventListener(
+                                "click",
+                                async () => {
+                                    if (
+                                        cuposDisponibles <=
+                                        0
+                                    ) {
+                                        alert(
+                                            "No quedan cupos disponibles para esta clase",
+                                        );
+                                        return;
+                                    }
+
+                                    botonCupo.setAttribute(
+                                        "disabled",
+                                        "true",
+                                    );
+
+                                    try {
+                                        const respuesta =
+                                            await fetch(
+                                                "http://127.0.0.1:3000/clases/postulaciones/estado",
+                                                {
+                                                    method: "POST",
+                                                    headers: {
+                                                        "Content-Type":
+                                                            "application/json",
+                                                    },
+                                                    body: JSON.stringify(
+                                                        {
+                                                            id: postulacion.id,
+                                                            estado: "aceptado",
+                                                        },
+                                                    ),
+                                                },
+                                            );
+
+                                        if (
+                                            !respuesta.ok
+                                        ) {
+                                            throw new Error();
+                                        }
+
+                                        postulacion.estado =
+                                            "aceptado";
+
+                                        await cargarDatos();
+
+                                        cargarSelectorClases();
+
+                                        selectorClase.value =
+                                            String(
+                                                claseActual?.id ??
+                                                    claseId,
+                                            );
+
+                                        mostrarResumenCupos(
+                                            selectorClase.value,
+                                        );
+
+                                        mostrarPostulaciones(
+                                            selectorClase.value,
+                                        );
+                                    } catch {
+                                        alert(
+                                            "No se pudo dar el cupo",
+                                        );
+
+                                        botonCupo.removeAttribute(
+                                            "disabled",
+                                        );
+                                    }
+                                },
+                            );
+
+                            botonIgnorar?.addEventListener(
+                                "click",
+                                async () => {
+                                    botonIgnorar.setAttribute(
+                                        "disabled",
+                                        "true",
+                                    );
+
+                                    try {
+                                        const respuesta =
+                                            await fetch(
+                                                "http://127.0.0.1:3000/clases/postulaciones/estado",
+                                                {
+                                                    method: "POST",
+                                                    headers: {
+                                                        "Content-Type":
+                                                            "application/json",
+                                                    },
+                                                    body: JSON.stringify(
+                                                        {
+                                                            id: postulacion.id,
+                                                            estado: "ignorado",
+                                                        },
+                                                    ),
+                                                },
+                                            );
+
+                                        if (
+                                            !respuesta.ok
+                                        ) {
+                                            throw new Error();
+                                        }
+
+                                        postulacion.estado =
+                                            "ignorado";
+
+                                        await cargarDatos();
+
+                                        cargarSelectorClases();
+
+                                        selectorClase.value =
+                                            String(
+                                                claseId,
+                                            );
+
+                                        mostrarResumenCupos(
+                                            selectorClase.value,
+                                        );
+
+                                        mostrarPostulaciones(
+                                            selectorClase.value,
+                                        );
+                                    } catch {
+                                        alert(
+                                            "No se pudo ignorar la postulación",
+                                        );
+
+                                        botonIgnorar.removeAttribute(
+                                            "disabled",
+                                        );
+                                    }
+                                },
+                            );
+                        },
+                    );
+                };
+
+                await cargarDatos();
+
+                cargarSelectorClases();
+
+                if (clases.length > 0) {
+                    selectorClase.value =
+                        String(clases[0].id);
+
+                    mostrarResumenCupos(
+                        selectorClase.value,
+                    );
+
+                    mostrarPostulaciones(
+                        selectorClase.value,
+                    );
+                }
+
+                selectorClase.addEventListener(
+                    "change",
+                    () => {
+                        mostrarResumenCupos(
+                            selectorClase.value,
+                        );
+
+                        mostrarPostulaciones(
+                            selectorClase.value,
+                        );
+                    },
+                );
+
+                botonEliminar?.addEventListener(
+                    "click",
+                    async () => {
+                        if (!modoSeleccion) {
+                            modoSeleccion = true;
+
+                            botonEliminar.textContent =
+                                "Eliminar seleccionados (0)";
+
+                            botonCancelar?.classList.remove(
+                                "hidden",
+                            );
+
+                            mostrarPostulaciones(
+                                selectorClase.value,
+                            );
+
+                            return;
+                        }
+
+                        const checkboxesSeleccionados =
+                            document.querySelectorAll(
+                                ".checkbox-postulacion:checked",
+                            );
+
+                        const idsSeleccionados =
+                            Array.from(
+                                checkboxesSeleccionados,
+                            ).map(
+                                (checkbox) =>
+                                    Number(
+                                        checkbox.getAttribute(
+                                            "data-id",
+                                        ),
+                                    ),
+                            );
+
+                        if (
+                            idsSeleccionados.length ===
+                            0
+                        ) {
+                            return;
+                        }
+
+                        const confirmar =
+                            confirm(
+                                "¿Desea eliminar las postulaciones seleccionadas?",
+                            );
+
+                        if (!confirmar) {
+                            return;
+                        }
+
+                        botonEliminar.setAttribute(
+                            "disabled",
+                            "true",
+                        );
+
+                        try {
+                            for (
+                                const id of idsSeleccionados
+                            ) {
+                                const respuesta =
+                                    await fetch(
+                                        "http://127.0.0.1:3000/clases/postulaciones/" +
+                                            id,
+                                        {
+                                            method: "DELETE",
+                                        },
+                                    );
+
+                                if (
+                                    !respuesta.ok
+                                ) {
+                                    throw new Error();
+                                }
+                            }
+
+                            modoSeleccion = false;
+
+                            await cargarDatos();
+
+                            cargarSelectorClases();
+
+                            if (clases.length > 0) {
+                                selectorClase.value =
+                                    String(
+                                        clases.find(
+                                            (clase) =>
+                                                String(
+                                                    clase.id,
+                                                ) ===
+                                                selectorClase.value,
+                                        )?.id ??
+                                            clases[0].id,
+                                    );
+
+                                mostrarResumenCupos(
+                                    selectorClase.value,
+                                );
+
+                                mostrarPostulaciones(
+                                    selectorClase.value,
+                                );
+                            }
+                        } catch {
+                            alert(
+                                "No se pudieron eliminar todas las postulaciones",
+                            );
+                        } finally {
+                            botonEliminar.removeAttribute(
+                                "disabled",
+                            );
+
+                            botonEliminar.textContent =
+                                "🗑 Eliminar";
+                        }
+                    },
+                );
+
+                botonCancelar?.addEventListener(
+                    "click",
+                    () => {
+                        modoSeleccion = false;
+
+                        if (botonEliminar) {
+                            botonEliminar.textContent =
+                                "🗑 Eliminar";
+                        }
+
+                        botonCancelar.classList.add(
+                            "hidden",
+                        );
+
+                        mostrarPostulaciones(
+                            selectorClase.value,
+                        );
+                    },
+                );
+
+                const botonVolver =
+                    document.getElementById(
+                        "volverCalendario",
+                    );
+
+                botonVolver?.addEventListener(
+                    "click",
+                    () => {
+                        window.location.href = "/";
+                    },
+                );
+            }
+
+            cargarPostulaciones();
+        </script>
+    </body>
+</html>
